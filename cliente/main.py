@@ -25,14 +25,17 @@ class Cliente:
         print(("="*10) + "Bienvenido a 'TurboMessage'"+("="*10))
         print("1: Login")
         print("2: Registro")
+        print("q: Salir")
 
         while True:
             accion = input("#Ingresa que acción deseas realizar: ")
 
             if accion == "1":
-                print("Login")
+                self.login()
             elif accion == "2":
                 self.registrarse()
+            elif accion == "q":
+                exit()
             else:
                 print("No hay tal acción")
 
@@ -63,11 +66,20 @@ class Cliente:
             print("ERROR: Ya existe un usuario con ese nombre")
 
     def login(self):
-        pass
-            
+        usuario = input("\n #Usuario: ")
+        passwd = input(" #Contraseña: ")
+        respuesta = self.stub.revisarUsuario(turbomessage_pb2.Usuario(usuario=usuario, contrasena=passwd))
+        if respuesta.success:
+            print("Login completado con exito")
+            self.sesion["id"]=int(respuesta.mensaje)
+            self.sesion["usuario"]=usuario
+            self.bandeja()
+        else:
+            print("ERROR: Credenciales Incorrectas")    
 
     def bandeja(self):
         print("Bienvenid@: "+self.sesion["usuario"]+str(self.sesion["id"]))
+        
 
 
 

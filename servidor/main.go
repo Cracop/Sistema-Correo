@@ -73,6 +73,24 @@ func (s *Server) NuevoUsuario(ctx context.Context, in *pb.Usuario) (*pb.Status, 
 
 }
 
+func (s *Server) RevisarUsuario(ctx context.Context, in *pb.Usuario) (*pb.Status, error) {
+	var exito bool
+	mensaje := "0"
+	if len(usersMap) == 0 {
+		exito = false
+	} else {
+		for id, person := range usersMap {
+			if person.User == *in.Usuario && person.Passwd == *in.Contrasena {
+				exito = true
+				mensaje = strconv.Itoa(id)
+				break
+			}
+		}
+	}
+
+	return &pb.Status{Success: &[]bool{exito}[0], Mensaje: &[]string{mensaje}[0]}, nil
+}
+
 func reloadDBs() {
 
 	jsonData, err := json.Marshal(usersMap)
