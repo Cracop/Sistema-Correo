@@ -1,0 +1,20 @@
+export PATH="$PATH:$(go env GOPATH)/bin" 
+
+protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./turbomessage.proto
+
+python -m grpc_tools.protoc -I. --python_out=. --pyi_out=. --grpc_python_out=. ./turbomessage.proto
+
+
+
+
+(grpc) (base) [rodrigo@RodrigoZeph servidor]$ go run .
+proto/turbomessage_grpc.pb.go:11:2: no required module provides package google.golang.org/grpc; to add it:
+        go get google.golang.org/grpc
+proto/turbomessage_grpc.pb.go:12:2: no required module provides package google.golang.org/grpc/codes; to add it:
+        go get google.golang.org/grpc/codes
+proto/turbomessage_grpc.pb.go:13:2: no required module provides package google.golang.org/grpc/status; to add it:
+        go get google.golang.org/grpc/status
+proto/turbomessage.pb.go:10:2: no required module provides package google.golang.org/protobuf/reflect/protoreflect; to add it:
+        go get google.golang.org/protobuf/reflect/protoreflect
+proto/turbomessage.pb.go:11:2: no required module provides package google.golang.org/protobuf/runtime/protoimpl; to add it:
+        go get google.golang.org/protobuf/runtime/protoimpl

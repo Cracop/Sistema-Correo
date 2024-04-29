@@ -1,0 +1,36 @@
+syntax = "proto3";
+package correos;
+
+option go_package = "./";  // Specify your Go import path here
+
+service TurboMessage {
+    rpc nuevoUsuario(Usuario) returns (Status) {}; //agregar un usuario
+    rpc revisarUsuario(Usuario) returns (Status) {}; //revisar que el usuario esté registrado
+    rpc enviarCorreo(Correo) returns (Status) {}; //envía un correo 
+    rpc correosEntrada(Usuario) returns (stream Correo) {}; //muestra los correos de entrada
+    rpc correosSalida(Usuario) returns (stream Correo) {};  // muestra la bandeja de salida
+    rpc eliminarCorreosEntrada(Correo) returns (Status) {}; //elimina un correo de la bandeja de entrada
+    rpc eliminarCorreosSalida(Correo) returns (Status) {}; //elimina un correo de la bandeja de salida
+    rpc correoLeido(Correo) returns (Status) {}; //cambia el estado de "leído" de un correo
+}
+
+message Usuario {
+    optional string usuario = 1;
+    optional string contrasena = 2;
+
+}
+message Correo {
+    optional int32 identificador = 1; 
+    optional string tema = 2; 
+    optional string emisor = 3;
+    optional string destinatario = 4;
+    optional string contenido = 5; 
+    optional bool leido = 6;
+
+
+}
+
+message Status {
+    optional bool success = 1; 
+    optional string mensaje = 2;
+}
