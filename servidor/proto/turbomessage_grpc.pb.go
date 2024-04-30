@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion7
 const (
 	TurboMessage_NuevoUsuario_FullMethodName           = "/correos.TurboMessage/nuevoUsuario"
 	TurboMessage_RevisarUsuario_FullMethodName         = "/correos.TurboMessage/revisarUsuario"
+	TurboMessage_DirectorioUsuario_FullMethodName      = "/correos.TurboMessage/directorioUsuario"
 	TurboMessage_EnviarCorreo_FullMethodName           = "/correos.TurboMessage/enviarCorreo"
 	TurboMessage_CorreosEntrada_FullMethodName         = "/correos.TurboMessage/correosEntrada"
 	TurboMessage_CorreosSalida_FullMethodName          = "/correos.TurboMessage/correosSalida"
@@ -35,6 +36,7 @@ const (
 type TurboMessageClient interface {
 	NuevoUsuario(ctx context.Context, in *Usuario, opts ...grpc.CallOption) (*Status, error)
 	RevisarUsuario(ctx context.Context, in *Usuario, opts ...grpc.CallOption) (*Status, error)
+	DirectorioUsuario(ctx context.Context, in *Empty, opts ...grpc.CallOption) (TurboMessage_DirectorioUsuarioClient, error)
 	EnviarCorreo(ctx context.Context, in *Correo, opts ...grpc.CallOption) (*Status, error)
 	CorreosEntrada(ctx context.Context, in *Usuario, opts ...grpc.CallOption) (TurboMessage_CorreosEntradaClient, error)
 	CorreosSalida(ctx context.Context, in *Usuario, opts ...grpc.CallOption) (TurboMessage_CorreosSalidaClient, error)
@@ -69,6 +71,38 @@ func (c *turboMessageClient) RevisarUsuario(ctx context.Context, in *Usuario, op
 	return out, nil
 }
 
+func (c *turboMessageClient) DirectorioUsuario(ctx context.Context, in *Empty, opts ...grpc.CallOption) (TurboMessage_DirectorioUsuarioClient, error) {
+	stream, err := c.cc.NewStream(ctx, &TurboMessage_ServiceDesc.Streams[0], TurboMessage_DirectorioUsuario_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &turboMessageDirectorioUsuarioClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type TurboMessage_DirectorioUsuarioClient interface {
+	Recv() (*Usuario, error)
+	grpc.ClientStream
+}
+
+type turboMessageDirectorioUsuarioClient struct {
+	grpc.ClientStream
+}
+
+func (x *turboMessageDirectorioUsuarioClient) Recv() (*Usuario, error) {
+	m := new(Usuario)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (c *turboMessageClient) EnviarCorreo(ctx context.Context, in *Correo, opts ...grpc.CallOption) (*Status, error) {
 	out := new(Status)
 	err := c.cc.Invoke(ctx, TurboMessage_EnviarCorreo_FullMethodName, in, out, opts...)
@@ -79,7 +113,7 @@ func (c *turboMessageClient) EnviarCorreo(ctx context.Context, in *Correo, opts 
 }
 
 func (c *turboMessageClient) CorreosEntrada(ctx context.Context, in *Usuario, opts ...grpc.CallOption) (TurboMessage_CorreosEntradaClient, error) {
-	stream, err := c.cc.NewStream(ctx, &TurboMessage_ServiceDesc.Streams[0], TurboMessage_CorreosEntrada_FullMethodName, opts...)
+	stream, err := c.cc.NewStream(ctx, &TurboMessage_ServiceDesc.Streams[1], TurboMessage_CorreosEntrada_FullMethodName, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +145,7 @@ func (x *turboMessageCorreosEntradaClient) Recv() (*Correo, error) {
 }
 
 func (c *turboMessageClient) CorreosSalida(ctx context.Context, in *Usuario, opts ...grpc.CallOption) (TurboMessage_CorreosSalidaClient, error) {
-	stream, err := c.cc.NewStream(ctx, &TurboMessage_ServiceDesc.Streams[1], TurboMessage_CorreosSalida_FullMethodName, opts...)
+	stream, err := c.cc.NewStream(ctx, &TurboMessage_ServiceDesc.Streams[2], TurboMessage_CorreosSalida_FullMethodName, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -175,6 +209,7 @@ func (c *turboMessageClient) CorreoLeido(ctx context.Context, in *Correo, opts .
 type TurboMessageServer interface {
 	NuevoUsuario(context.Context, *Usuario) (*Status, error)
 	RevisarUsuario(context.Context, *Usuario) (*Status, error)
+	DirectorioUsuario(*Empty, TurboMessage_DirectorioUsuarioServer) error
 	EnviarCorreo(context.Context, *Correo) (*Status, error)
 	CorreosEntrada(*Usuario, TurboMessage_CorreosEntradaServer) error
 	CorreosSalida(*Usuario, TurboMessage_CorreosSalidaServer) error
@@ -193,6 +228,9 @@ func (UnimplementedTurboMessageServer) NuevoUsuario(context.Context, *Usuario) (
 }
 func (UnimplementedTurboMessageServer) RevisarUsuario(context.Context, *Usuario) (*Status, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RevisarUsuario not implemented")
+}
+func (UnimplementedTurboMessageServer) DirectorioUsuario(*Empty, TurboMessage_DirectorioUsuarioServer) error {
+	return status.Errorf(codes.Unimplemented, "method DirectorioUsuario not implemented")
 }
 func (UnimplementedTurboMessageServer) EnviarCorreo(context.Context, *Correo) (*Status, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method EnviarCorreo not implemented")
@@ -259,6 +297,27 @@ func _TurboMessage_RevisarUsuario_Handler(srv interface{}, ctx context.Context, 
 		return srv.(TurboMessageServer).RevisarUsuario(ctx, req.(*Usuario))
 	}
 	return interceptor(ctx, in, info, handler)
+}
+
+func _TurboMessage_DirectorioUsuario_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(Empty)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(TurboMessageServer).DirectorioUsuario(m, &turboMessageDirectorioUsuarioServer{stream})
+}
+
+type TurboMessage_DirectorioUsuarioServer interface {
+	Send(*Usuario) error
+	grpc.ServerStream
+}
+
+type turboMessageDirectorioUsuarioServer struct {
+	grpc.ServerStream
+}
+
+func (x *turboMessageDirectorioUsuarioServer) Send(m *Usuario) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 func _TurboMessage_EnviarCorreo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -408,6 +467,11 @@ var TurboMessage_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "directorioUsuario",
+			Handler:       _TurboMessage_DirectorioUsuario_Handler,
+			ServerStreams: true,
+		},
 		{
 			StreamName:    "correosEntrada",
 			Handler:       _TurboMessage_CorreosEntrada_Handler,

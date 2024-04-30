@@ -91,6 +91,23 @@ func (s *Server) RevisarUsuario(ctx context.Context, in *pb.Usuario) (*pb.Status
 	return &pb.Status{Success: &[]bool{exito}[0], Mensaje: &[]string{mensaje}[0]}, nil
 }
 
+func (s *Server) DirectorioUsuario(em *pb.Empty, stream pb.TurboMessage_DirectorioUsuarioServer) error {
+	for id, person := range usersMap {
+		// tempUser := Usuario{person.User, strconv.Itoa(id)}
+		idP := strconv.Itoa(id)
+		tempUser := &pb.Usuario{Usuario: &person.User, Contrasena: &idP}
+
+		if err := stream.Send(tempUser); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// func (UnimplementedTurboMessageServer) DirectorioUsuario(*Empty, TurboMessage_DirectorioUsuarioServer) error {
+// 	return status.Errorf(codes.Unimplemented, "method DirectorioUsuario not implemented")
+// }
+
 func reloadDBs() {
 
 	jsonData, err := json.Marshal(usersMap)

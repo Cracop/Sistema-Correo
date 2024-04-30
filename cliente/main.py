@@ -23,11 +23,12 @@ class Cliente:
     def menu_principal(self):
         self.limpiar_pantalla()
         print(("="*10) + "Bienvenido a 'TurboMessage'"+("="*10))
-        print("1: Login")
-        print("2: Registro")
-        print("q: Salir")
+        
 
         while True:
+            print("1: Login")
+            print("2: Registro")
+            print("q: Salir")
             accion = input("#Ingresa que acción deseas realizar: ")
 
             if accion == "1":
@@ -41,7 +42,7 @@ class Cliente:
 
             
     def registrarse(self):
-        
+        self.limpiar_pantalla()
         correcta = False
         print("Gracias por elegir TurboMessage, por favor completa la siguiente información")
         usuario = input("\n #Usuario: ")
@@ -66,6 +67,7 @@ class Cliente:
             print("ERROR: Ya existe un usuario con ese nombre")
 
     def login(self):
+        self.limpiar_pantalla()
         usuario = input("\n #Usuario: ")
         passwd = input(" #Contraseña: ")
         respuesta = self.stub.revisarUsuario(turbomessage_pb2.Usuario(usuario=usuario, contrasena=passwd))
@@ -78,10 +80,45 @@ class Cliente:
             print("ERROR: Credenciales Incorrectas")    
 
     def bandeja(self):
-        print("Bienvenid@: "+self.sesion["usuario"]+str(self.sesion["id"]))
+        self.limpiar_pantalla()
+        print("Bienvenid@: "+self.sesion["usuario"])
+        while True:
+            print("1: Ver bandeja de entrada")
+            print("2: Ver bandeja de salida")
+            print("3: Escribir correo")
+            print("4: Ver todos los usuarios")
+            print("q: Regresar")
+            accion = input("#Ingresa que acción deseas realizar: ")
+
+            if accion == "1":
+                self.verBandejaEntrada()
+            elif accion == "2":
+                self.verBandejaSalida()
+            elif accion == "3":
+                self.escribirCorreo()
+            elif accion == "4":
+                self.verDirectorio()
+            elif accion == "q":
+                return
+            else:
+                print("No hay tal acción")
         
 
+    def verBandejaEntrada(self):
+        pass
 
+    def verBandejaSalida(self):
+        pass
+
+    def escribirCorreo(self):
+        pass
+
+    def verDirectorio(self):
+        print(("="*10) + "Directorio de Usuarios'"+("="*10))
+        for elemento in self.stub.directorioUsuario(turbomessage_pb2.Empty()):
+            print("Nombre: "+str(elemento.usuario)+" ID: "+elemento.contrasena)
+        print(("="*12) + "Fin del Directorio'"+("="*12))
+        
 
 # def run():
 #     with grpc.insecure_channel("localhost:50051") as channel:

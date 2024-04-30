@@ -6,6 +6,7 @@ option go_package = "./";  // Specify your Go import path here
 service TurboMessage {
     rpc nuevoUsuario(Usuario) returns (Status) {}; //agregar un usuario
     rpc revisarUsuario(Usuario) returns (Status) {}; //revisar que el usuario esté registrado
+    rpc directorioUsuario(Empty) returns (stream Usuario) {};
     rpc enviarCorreo(Correo) returns (Status) {}; //envía un correo 
     rpc correosEntrada(Usuario) returns (stream Correo) {}; //muestra los correos de entrada
     rpc correosSalida(Usuario) returns (stream Correo) {};  // muestra la bandeja de salida
@@ -34,3 +35,9 @@ message Status {
     optional bool success = 1; 
     optional string mensaje = 2;
 }
+
+message ListadoUsuarios {
+    repeated Usuario objetos = 1;
+}
+
+message Empty {}
