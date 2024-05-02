@@ -9,7 +9,7 @@ class Cliente:
     max_correos = 5
     def __init__(self, puerto):
         self.logeado = False
-        self.sesion = {"usuario":"","id":0}
+        self.sesion = {"usuario":""}
         self.puerto = puerto
         self.canal = grpc.insecure_channel("localhost:"+puerto)
         self.stub = turbomessage_pb2_grpc.TurboMessageStub(self.canal)
@@ -60,7 +60,6 @@ class Cliente:
         if respuesta.success:
             print("Registro completado con exito")
             print("Procediendo a logearte directo")
-            self.sesion["id"]=int(respuesta.mensaje)
             self.sesion["usuario"]=usuario
             self.bandeja()
         else:
@@ -73,7 +72,6 @@ class Cliente:
         respuesta = self.stub.revisarUsuario(turbomessage_pb2.Usuario(usuario=usuario, contrasena=passwd))
         if respuesta.success:
             print("Login completado con exito")
-            self.sesion["id"]=int(respuesta.mensaje)
             self.sesion["usuario"]=usuario
             self.bandeja()
         else:
@@ -116,7 +114,7 @@ class Cliente:
     def verDirectorio(self):
         print(("="*10) + "Directorio de Usuarios'"+("="*10))
         for elemento in self.stub.directorioUsuario(turbomessage_pb2.Empty()):
-            print("Nombre: "+str(elemento.usuario)+" ID: "+elemento.contrasena)
+            print("Nombre: "+str(elemento.usuario))
         print(("="*12) + "Fin del Directorio'"+("="*12))
         
 

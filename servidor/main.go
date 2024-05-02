@@ -6,11 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"math/rand"
 	"net"
 	"os"
 	pb "servidor/proto"
-	"strconv"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -20,7 +18,7 @@ var (
 	port            = flag.Int("port", 50051, "The server port")
 	filenameUsers   = "db_users.json"
 	filenameCorreos = "db_correos.json"
-	usersMap        = make(map[int]Usuario)
+	usersMap        = make(map[string]Usuario)
 	usersLock       sync.Mutex
 )
 
@@ -40,62 +38,31 @@ func (s *Server) NuevoUsuario(ctx context.Context, in *pb.Usuario) (*pb.Status, 
 	//LIFO
 	defer usersLock.Unlock()
 	defer reloadDBs()
-	var found = false
-	id := rand.Intn(101) + 1
-	// Check if the map is empty
-	if len(usersMap) == 0 {
 
-		usersMap[id] = Usuario{User: *in.Usuario, Passwd: *in.Contrasena}
-		return &pb.Status{Success: &[]bool{true}[0], Mensaje: &[]string{strconv.Itoa(id)}[0]}, nil
+	if _, exists := usersMap[*in.Usuario]; !exists {
+		usersMap[*in.Usuario] = Usuario{Passwd: *in.Contrasena}
+		return &pb.Status{Success: &[]bool{true}[0], Mensaje: &[]string{"usuario creado con éxito"}[0]}, nil
 	} else {
-		for _, person := range usersMap {
-			if person.User == *in.Usuario {
-				found = true
-				break
-			}
-
-		}
-		if found {
-			return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"0"}[0]}, nil
-		} else {
-			for {
-				id = rand.Intn(101) + 1
-				if _, exists := usersMap[id]; !exists {
-					// If the id does not exist in the map, break out of the loop
-					break
-				}
-			}
-			usersMap[id] = Usuario{User: *in.Usuario, Passwd: *in.Contrasena}
-			return &pb.Status{Success: &[]bool{true}[0], Mensaje: &[]string{strconv.Itoa(id)}[0]}, nil
-		}
-
+		return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"Usuario ya existe"}[0]}, nil
 	}
 
 }
 
 func (s *Server) RevisarUsuario(ctx context.Context, in *pb.Usuario) (*pb.Status, error) {
-	var exito bool
-	mensaje := "0"
-	if len(usersMap) == 0 {
-		exito = false
+	if _, exists := usersMap[*in.Usuario]; exists {
+		usersMap[*in.Usuario] = Usuario{Passwd: *in.Contrasena}
+		return &pb.Status{Success: &[]bool{true}[0], Mensaje: &[]string{"Usuario existe"}[0]}, nil
 	} else {
-		for id, person := range usersMap {
-			if person.User == *in.Usuario && person.Passwd == *in.Contrasena {
-				exito = true
-				mensaje = strconv.Itoa(id)
-				break
-			}
-		}
+		return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"Usuario no existe"}[0]}, nil
 	}
 
-	return &pb.Status{Success: &[]bool{exito}[0], Mensaje: &[]string{mensaje}[0]}, nil
 }
 
 func (s *Server) DirectorioUsuario(em *pb.Empty, stream pb.TurboMessage_DirectorioUsuarioServer) error {
-	for id, person := range usersMap {
+	for id, _ := range usersMap {
 		// tempUser := Usuario{person.User, strconv.Itoa(id)}
-		idP := strconv.Itoa(id)
-		tempUser := &pb.Usuario{Usuario: &person.User, Contrasena: &idP}
+		idP := ""
+		tempUser := &pb.Usuario{Usuario: &id, Contrasena: &idP}
 
 		if err := stream.Send(tempUser); err != nil {
 			return err
