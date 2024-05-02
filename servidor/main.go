@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"os"
 	pb "servidor/proto"
@@ -19,12 +20,24 @@ var (
 	filenameUsers   = "db_users.json"
 	filenameCorreos = "db_correos.json"
 	usersMap        = make(map[string]Usuario)
+	correosMap      = make(map[int]Correo)
 	usersLock       sync.Mutex
+	correosLock     sync.Mutex
+	numMax          = 5
 )
 
 type Usuario struct {
 	User   string `json:"usuario"`
 	Passwd string `json:"passwd"`
+}
+
+type Correo struct {
+	// User         string `json:"usuario"`
+	Tema         string `json:"tema"`
+	Destinatario string `json:"destinatario"`
+	Emisor       string `json:"emisor"`
+	Contenido    string `json:"contenido"`
+	Leido        bool   `json:"leido"`
 }
 
 type Server struct {
@@ -37,7 +50,7 @@ func (s *Server) NuevoUsuario(ctx context.Context, in *pb.Usuario) (*pb.Status, 
 	usersLock.Lock()
 	//LIFO
 	defer usersLock.Unlock()
-	defer reloadDBs()
+	defer reloadUserDBs()
 
 	if _, exists := usersMap[*in.Usuario]; !exists {
 		usersMap[*in.Usuario] = Usuario{Passwd: *in.Contrasena}
@@ -50,7 +63,6 @@ func (s *Server) NuevoUsuario(ctx context.Context, in *pb.Usuario) (*pb.Status, 
 
 func (s *Server) RevisarUsuario(ctx context.Context, in *pb.Usuario) (*pb.Status, error) {
 	if _, exists := usersMap[*in.Usuario]; exists {
-		usersMap[*in.Usuario] = Usuario{Passwd: *in.Contrasena}
 		return &pb.Status{Success: &[]bool{true}[0], Mensaje: &[]string{"Usuario existe"}[0]}, nil
 	} else {
 		return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"Usuario no existe"}[0]}, nil
@@ -59,7 +71,7 @@ func (s *Server) RevisarUsuario(ctx context.Context, in *pb.Usuario) (*pb.Status
 }
 
 func (s *Server) DirectorioUsuario(em *pb.Empty, stream pb.TurboMessage_DirectorioUsuarioServer) error {
-	for id, _ := range usersMap {
+	for id := range usersMap {
 		// tempUser := Usuario{person.User, strconv.Itoa(id)}
 		idP := ""
 		tempUser := &pb.Usuario{Usuario: &id, Contrasena: &idP}
@@ -75,7 +87,46 @@ func (s *Server) DirectorioUsuario(em *pb.Empty, stream pb.TurboMessage_Director
 // 	return status.Errorf(codes.Unimplemented, "method DirectorioUsuario not implemented")
 // }
 
-func reloadDBs() {
+func (s *Server) EnviarCorreo(ctx context.Context, in *pb.Correo) (*pb.Status, error) {
+
+	correosLock.Lock()
+	//LIFO
+	defer correosLock.Unlock()
+	defer reloadCorreoDBs()
+
+	// var found = false
+	id := rand.Intn(101) + 1
+
+	if _, exists := correosMap[id]; !exists || len(usersMap) == 0 {
+		correosMap[id] = Correo{Tema: *in.Tema,
+			Destinatario: *in.Destinatario,
+			Emisor:       *in.Emisor,
+			Contenido:    *in.Contenido,
+			Leido:        *in.Leido}
+
+	} else {
+		for {
+			id = rand.Intn(101) + 1
+			if _, exists := correosMap[id]; !exists {
+				// If the id does not exist in the map, break out of the loop
+				break
+			}
+
+		}
+		correosMap[id] = Correo{Tema: *in.Tema,
+			Destinatario: *in.Destinatario,
+			Emisor:       *in.Emisor,
+			Contenido:    *in.Contenido,
+			Leido:        *in.Leido}
+	}
+	return &pb.Status{Success: &[]bool{true}[0], Mensaje: &[]string{"Correo enviado con éxito"}[0]}, nil
+}
+
+// func revisarRestriccion(emisor string, destinatario string) (bool, string) {
+
+// }
+
+func reloadUserDBs() {
 
 	jsonData, err := json.Marshal(usersMap)
 	if err != nil {
@@ -89,6 +140,24 @@ func reloadDBs() {
 	}
 
 	if err := json.Unmarshal(data, &usersMap); err != nil {
+		return
+	}
+}
+
+func reloadCorreoDBs() {
+
+	jsonData, err := json.Marshal(correosMap)
+	if err != nil {
+		return
+	}
+	os.WriteFile(filenameCorreos, jsonData, 0644)
+
+	data, err := os.ReadFile(filenameCorreos)
+	if err != nil {
+		return
+	}
+
+	if err := json.Unmarshal(data, &correosMap); err != nil {
 		return
 	}
 }
@@ -126,6 +195,15 @@ func init() {
 	}
 
 	if err := json.Unmarshal(data, &usersMap); err != nil {
+		return
+	}
+
+	data, err = os.ReadFile(filenameCorreos)
+	if err != nil {
+		return
+	}
+
+	if err := json.Unmarshal(data, &correosMap); err != nil {
 		return
 	}
 }

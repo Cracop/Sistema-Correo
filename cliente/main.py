@@ -109,7 +109,21 @@ class Cliente:
         pass
 
     def escribirCorreo(self):
-        pass
+        self.limpiar_pantalla()
+        self.verDirectorio()
+        print(("="*10) + "Escritura de Correo'"+("="*10))
+        dest = input("Destinatario: ")
+        tema = input("Asunto: ")
+        contenido = input("Contenido: \n")
+        respuesta = self.stub.enviarCorreo(turbomessage_pb2.Correo(identificador=0, 
+                                                                   tema=tema,
+                                                                   emisor=self.sesion["usuario"],
+                                                                   destinatario=dest,
+                                                                   contenido=contenido,
+                                                                   leido=False))
+        
+        print(respuesta.mensaje)
+
 
     def verDirectorio(self):
         print(("="*10) + "Directorio de Usuarios'"+("="*10))
