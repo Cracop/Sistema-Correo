@@ -27,8 +27,6 @@ message Correo {
     optional string destinatario = 4;
     optional string contenido = 5; 
     optional bool leido = 6;
-
-
 }
 
 message Status {

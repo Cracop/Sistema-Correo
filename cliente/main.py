@@ -103,10 +103,27 @@ class Cliente:
         
 
     def verBandejaEntrada(self):
-        pass
+        self.limpiar_pantalla()
+        print("BANDEJA DE ENTRADA DE "+self.sesion["usuario"])
+        correos = self.stub.correosEntrada(turbomessage_pb2.Usuario(usuario=self.sesion["usuario"], contrasena=""))
+        for correo in correos:
+            print(("-"*30))
+            print("ID:"+str(correo.identificador)+"| Asunto: "+ correo.tema +"| De:" + correo.emisor+ " | Leído: "+str(correo.leido))
+            print(("-"*30))
+
+        
 
     def verBandejaSalida(self):
-        pass
+        self.limpiar_pantalla()
+        print("BANDEJA DE SALIDA DE "+self.sesion["usuario"])
+        correos = self.stub.correosSalida(turbomessage_pb2.Usuario(usuario=self.sesion["usuario"], contrasena=""))
+        print(type(correos))
+        for correo in correos:
+            print(("-"*30))
+            print("ID:"+str(correo.identificador)+"| Asunto: "+ correo.tema +"| De:" + correo.emisor )
+            print(("-"*30))
+
+        
 
     def escribirCorreo(self):
         self.limpiar_pantalla()

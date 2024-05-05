@@ -27,8 +27,10 @@ var (
 )
 
 type Usuario struct {
-	User   string `json:"usuario"`
-	Passwd string `json:"passwd"`
+	User            string `json:"usuario"`
+	Passwd          string `json:"passwd"`
+	BandejaEntradas []int  `json:"bandEntrada"`
+	BandejaSalidas  []int  `json:"bandSalida"`
 }
 
 type Correo struct {
@@ -90,21 +92,30 @@ func (s *Server) DirectorioUsuario(em *pb.Empty, stream pb.TurboMessage_Director
 func (s *Server) EnviarCorreo(ctx context.Context, in *pb.Correo) (*pb.Status, error) {
 
 	correosLock.Lock()
+	usersLock.Lock()
 	//LIFO
 	defer correosLock.Unlock()
+	defer usersLock.Unlock()
 	defer reloadCorreoDBs()
+	defer reloadUserDBs()
 
+	if _, exists := usersMap[*in.Destinatario]; !exists {
+		return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"No existe tal usuario"}[0]}, nil
+	}
+
+	//Probar si la bandeja de salida del emisor está llena
+	if len(usersMap[*in.Emisor].BandejaSalidas) > numMax {
+		return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"Bandeja de Salida llena"}[0]}, nil
+	}
+	//Probar si la bandeja de entrada del destinatario está llenaz
+	if len(usersMap[*in.Destinatario].BandejaEntradas) > numMax {
+		return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"Bandeja de Entrada llena"}[0]}, nil
+	}
 	// var found = false
 	id := rand.Intn(101) + 1
 
-	if _, exists := correosMap[id]; !exists || len(usersMap) == 0 {
-		correosMap[id] = Correo{Tema: *in.Tema,
-			Destinatario: *in.Destinatario,
-			Emisor:       *in.Emisor,
-			Contenido:    *in.Contenido,
-			Leido:        *in.Leido}
+	if _, exists := correosMap[id]; exists {
 
-	} else {
 		for {
 			id = rand.Intn(101) + 1
 			if _, exists := correosMap[id]; !exists {
@@ -113,18 +124,96 @@ func (s *Server) EnviarCorreo(ctx context.Context, in *pb.Correo) (*pb.Status, e
 			}
 
 		}
-		correosMap[id] = Correo{Tema: *in.Tema,
-			Destinatario: *in.Destinatario,
-			Emisor:       *in.Emisor,
-			Contenido:    *in.Contenido,
-			Leido:        *in.Leido}
+
 	}
+
+	correosMap[id] = Correo{Tema: *in.Tema,
+		Destinatario: *in.Destinatario,
+		Emisor:       *in.Emisor,
+		Contenido:    *in.Contenido,
+		Leido:        *in.Leido}
+
+	usuario := usersMap[*in.Emisor]
+	usuario.BandejaSalidas = append(usuario.BandejaSalidas, id)
+	usersMap[*in.Emisor] = usuario
+
+	usuario = usersMap[*in.Destinatario]
+	usuario.BandejaEntradas = append(usuario.BandejaEntradas, id)
+	usersMap[*in.Destinatario] = usuario
+
 	return &pb.Status{Success: &[]bool{true}[0], Mensaje: &[]string{"Correo enviado con éxito"}[0]}, nil
 }
 
 // func revisarRestriccion(emisor string, destinatario string) (bool, string) {
 
 // }
+
+func (s *Server) CorreosEntrada(in *pb.Usuario, stream pb.TurboMessage_CorreosEntradaServer) error {
+	correosLock.Lock()
+	usersLock.Lock()
+	//LIFO
+	defer correosLock.Unlock()
+	defer usersLock.Unlock()
+	defer reloadCorreoDBs()
+	defer reloadUserDBs()
+
+	bandeja := usersMap[*in.Usuario].BandejaEntradas
+
+	for _, id := range bandeja {
+		// fmt.Println(id)
+		// fmt.Println(bandeja)
+		// fmt.Println(correosMap)
+		correo := correosMap[id]
+		ID := (int32(id))
+		// fmt.Println(id)
+
+		tempCorreo := &pb.Correo{Identificador: &ID,
+			Tema:         &correo.Tema,
+			Destinatario: &correo.Destinatario,
+			Emisor:       &correo.Emisor,
+			Contenido:    &correo.Contenido,
+			Leido:        &correo.Leido}
+
+		if err := stream.Send(tempCorreo); err != nil {
+			return err
+		}
+	}
+	return nil
+
+}
+
+func (s *Server) CorreosSalida(in *pb.Usuario, stream pb.TurboMessage_CorreosSalidaServer) error {
+	correosLock.Lock()
+	usersLock.Lock()
+	//LIFO
+	defer correosLock.Unlock()
+	defer usersLock.Unlock()
+	defer reloadCorreoDBs()
+	defer reloadUserDBs()
+
+	bandeja := usersMap[*in.Usuario].BandejaSalidas
+
+	for _, id := range bandeja {
+		// fmt.Println(id)
+		// fmt.Println(bandeja)
+		// fmt.Println(correosMap)
+		correo := correosMap[id]
+		ID := (int32(id))
+		// fmt.Println(id)
+
+		tempCorreo := &pb.Correo{Identificador: &ID,
+			Tema:         &correo.Tema,
+			Destinatario: &correo.Destinatario,
+			Emisor:       &correo.Emisor,
+			Contenido:    &correo.Contenido,
+			Leido:        &correo.Leido}
+
+		if err := stream.Send(tempCorreo); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func reloadUserDBs() {
 
