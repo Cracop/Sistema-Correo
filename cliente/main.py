@@ -120,7 +120,7 @@ class Cliente:
         print(type(correos))
         for correo in correos:
             print(("-"*30))
-            print("ID:"+str(correo.identificador)+"| Asunto: "+ correo.tema +"| De:" + correo.emisor )
+            print("ID:"+str(correo.identificador)+"| Asunto: "+ correo.tema +"| A: " + correo.destinatario )
             print(("-"*30))
 
         
@@ -148,6 +148,10 @@ class Cliente:
             print("Nombre: "+str(elemento.usuario))
         print(("="*12) + "Fin del Directorio'"+("="*12))
         
+    def verCorreo(self,correoID):
+        pass
+
+    
 
 # def run():
 #     with grpc.insecure_channel("localhost:50051") as channel:
