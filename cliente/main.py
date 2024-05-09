@@ -171,6 +171,7 @@ class Cliente:
 
     def escribirCorreo(self):
         self.limpiar_pantalla()
+        print("Eres: "+self.sesion["usuario"])
         self.verDirectorio()
         print(("="*10) + "Escritura de Correo'"+("="*10))
         dest = input("Destinatario: ")

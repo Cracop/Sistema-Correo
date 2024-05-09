@@ -277,7 +277,7 @@ func (s *Server) EliminarCorreosSalida(ctx context.Context, in *pb.Correo) (*pb.
 	//LIFO
 	defer correosLock.Unlock()
 	defer usersLock.Unlock()
-	// defer reloadCorreoDBs()
+	defer reloadCorreoDBs()
 	defer reloadUserDBs()
 
 	target := int(*in.Identificador)
