@@ -235,6 +235,78 @@ func (s *Server) CorreoLeido(ctx context.Context, in *pb.Correo) (*pb.Status, er
 
 }
 
+func (s *Server) EliminarCorreosEntrada(ctx context.Context, in *pb.Correo) (*pb.Status, error) {
+	correosLock.Lock()
+	usersLock.Lock()
+	//LIFO
+	defer correosLock.Unlock()
+	defer usersLock.Unlock()
+	defer reloadCorreoDBs()
+	defer reloadUserDBs()
+
+	target := int(*in.Identificador)
+	r := -1
+	for i, v := range usersMap[*in.Destinatario].BandejaEntradas {
+		if v == target {
+			r = i
+		}
+	}
+	if r == -1 {
+		return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"Algo falló al borrar el correo"}[0]}, nil
+	}
+
+	fmt.Println(usersMap[*in.Destinatario].BandejaEntradas)
+	newEntrada := append(usersMap[*in.Destinatario].BandejaEntradas[:r], usersMap[*in.Destinatario].BandejaEntradas[r+1:]...)
+	fmt.Println(newEntrada)
+
+	tempUser := usersMap[*in.Destinatario]
+	fmt.Println(tempUser)
+	tempUser.BandejaEntradas = newEntrada
+	usersMap[*in.Destinatario] = tempUser
+	fmt.Println(newEntrada)
+	fmt.Println(usersMap[*in.Destinatario])
+
+	// delete(correosMap, int(*in.Identificador))
+
+	return &pb.Status{Success: &[]bool{true}[0], Mensaje: &[]string{"Exito"}[0]}, nil
+
+}
+func (s *Server) EliminarCorreosSalida(ctx context.Context, in *pb.Correo) (*pb.Status, error) {
+	correosLock.Lock()
+	usersLock.Lock()
+	//LIFO
+	defer correosLock.Unlock()
+	defer usersLock.Unlock()
+	// defer reloadCorreoDBs()
+	defer reloadUserDBs()
+
+	target := int(*in.Identificador)
+	r := -1
+	for i, v := range usersMap[*in.Emisor].BandejaSalidas {
+		if v == target {
+			r = i
+		}
+	}
+	if r == -1 {
+		return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"Algo falló al borrar el correo"}[0]}, nil
+	}
+
+	fmt.Println(usersMap[*in.Emisor].BandejaSalidas)
+	newSalida := append(usersMap[*in.Emisor].BandejaSalidas[:r], usersMap[*in.Emisor].BandejaSalidas[r+1:]...)
+	fmt.Println(newSalida)
+
+	tempUser := usersMap[*in.Emisor]
+	fmt.Println(tempUser)
+	tempUser.BandejaSalidas = newSalida
+	usersMap[*in.Emisor] = tempUser
+	fmt.Println(newSalida)
+	fmt.Println(usersMap[*in.Emisor])
+
+	// delete(correosMap, int(*in.Identificador))
+
+	return &pb.Status{Success: &[]bool{true}[0], Mensaje: &[]string{"Exito"}[0]}, nil
+}
+
 func reloadUserDBs() {
 
 	jsonData, err := json.Marshal(usersMap)

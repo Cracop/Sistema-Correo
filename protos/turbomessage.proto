@@ -21,12 +21,12 @@ message Usuario {
 
 }
 message Correo {
-    optional int32 identificador = 1; 
-    optional string tema = 2; 
-    optional string emisor = 3;
-    optional string destinatario = 4;
-    optional string contenido = 5; 
-    optional bool leido = 6;
+        optional int32 identificador = 1; 
+        optional string tema = 2; 
+        optional string emisor = 3;
+        optional string destinatario = 4;
+        optional string contenido = 5; 
+        optional bool leido = 6;
 }
 
 message Status {

@@ -105,27 +105,28 @@ class Cliente:
         
 
     def verBandejaEntrada(self):
-        self.limpiar_pantalla()
-        self.bandejaEntrada.clear()
-        print("BANDEJA DE ENTRADA DE "+self.sesion["usuario"])
-        
-        correos = self.stub.correosEntrada(turbomessage_pb2.Usuario(usuario=self.sesion["usuario"], contrasena=""))
-        for correo in correos:
-            self.bandejaEntrada.append(correo)
-            print(("-"*30))
-            print("ID:"+str(len(self.bandejaEntrada))+"| Asunto: "+ correo.tema +"| De:" + correo.emisor+ " | Leído: "+str(correo.leido))
-            print(("-"*30))   
+        self.limpiar_pantalla()  
 
         while True:
+            self.bandejaEntrada.clear()
+            print("BANDEJA DE ENTRADA DE "+self.sesion["usuario"])
+            
+            correos = self.stub.correosEntrada(turbomessage_pb2.Usuario(usuario=self.sesion["usuario"], contrasena=""))
+            for correo in correos:
+                self.bandejaEntrada.append(correo)
+                print(("-"*30))
+                print("ID:"+str(len(self.bandejaEntrada))+"| Asunto: "+ correo.tema +"| De:" + correo.emisor+ " | Leído: "+str(correo.leido))
+                print(("-"*30)) 
+
             action = input("Escribe el ID del correo que quieres leer o 'q' si quieres regresar: ")
             if action == "q":
                 return
             
             try:
                 ac = int(action)
-                print(ac)
-                print(type(ac))
-                print(len(self.bandejaEntrada))
+                # print(ac)
+                # print(type(ac))
+                # print(len(self.bandejaEntrada))
                 ac -=1
                 if ac < len(self.bandejaEntrada):
                     self.verCorreo(ac, True) 
@@ -137,25 +138,27 @@ class Cliente:
 
     def verBandejaSalida(self):
         self.limpiar_pantalla()
-        self.bandejaSalida.clear()
-        print("BANDEJA DE SALIDA DE "+self.sesion["usuario"])
-        correos = self.stub.correosSalida(turbomessage_pb2.Usuario(usuario=self.sesion["usuario"], contrasena=""))
-        for correo in correos:
-            self.bandejaSalida.append(correo)
-            print(("-"*30))
-            print("ID:"+str(len(self.bandejaSalida))+"| Asunto: "+ correo.tema +"| A: " + correo.destinatario )
-        print(("-"*30))
 
         while True:
+
+            self.bandejaSalida.clear()
+            print("BANDEJA DE SALIDA DE "+self.sesion["usuario"])
+            correos = self.stub.correosSalida(turbomessage_pb2.Usuario(usuario=self.sesion["usuario"], contrasena=""))
+            for correo in correos:
+                self.bandejaSalida.append(correo)
+                print(("-"*30))
+                print("ID:"+str(len(self.bandejaSalida))+"| Asunto: "+ correo.tema +"| A: " + correo.destinatario )
+            print(("-"*30))
+
             action = input("Escribe el ID del correo que quieres leer o 'q' si quieres regresar: ")
             if action == "q":
                 return
             
             try:
                 ac = int(action)
-                print(ac)
-                print(type(ac))
-                print(len(self.bandejaSalida))
+                # print(ac)
+                # print(type(ac))
+                # print(len(self.bandejaSalida))
                 ac -=1
                 if ac < len(self.bandejaSalida):
                     self.verCorreo(ac, False) 
@@ -163,7 +166,7 @@ class Cliente:
                     print("No hay tal correo")
 
             except:
-                print("No hay tal accion") 
+                    print("No hay tal accion") 
         
 
     def escribirCorreo(self):
@@ -190,9 +193,8 @@ class Cliente:
         print(("="*12) + "Fin del Directorio'"+("="*12))
         
     def verCorreo(self,correoID_local, entrada):
-        print(correoID_local)
+        # print(correoID_local)
         if entrada:
-            print(self.bandejaEntrada[correoID_local])
             id = self.bandejaEntrada[correoID_local].identificador
             self.stub.correoLeido(turbomessage_pb2.Correo(identificador=id, 
                                                                    tema="",
@@ -200,17 +202,62 @@ class Cliente:
                                                                    destinatario="",
                                                                    contenido="",
                                                                    leido=True))
-            print(self.bandejaEntrada[correoID_local])
-        else:
-            print(self.bandejaSalida[correoID_local])
+            # print(self.bandejaEntrada[correoID_local])
+        self.imprimeCorreo(correoID_local,entrada)
+        # else:
+        #     print(self.bandejaSalida[correoID_local])
 
+
+    def imprimeCorreo(self,id, entrada):
+        if entrada:
+            correo = self.bandejaEntrada[id]
+        else:
+            correo = self.bandejaSalida[id]
+        print(("="*30))
+        print("ASUNTO: "+correo.tema)
+        print("De: "+correo.emisor)
+        print("A: "+correo.destinatario)
+        print(("-"*30))
+        print("A: "+correo.contenido)
+        print(("="*30))
+
+        while True:
+            ac = input("Borrar? (Y/N)")
+            if ac == "Y":
+                
+                if entrada:
+                    self.eliminarCorreoEntrada(id)
+                else:
+                    self.eliminarCorreoSalida(id)
+
+                return
+            elif ac=="N":
+                return
+            else:
+                print("No hay tal acción")
 
 
     def eliminarCorreoEntrada(self, correoID):
-        pass
+        id = self.bandejaEntrada[correoID].identificador
+        dest = self.bandejaEntrada[correoID].destinatario
+        resp = self.stub.eliminarCorreosEntrada(turbomessage_pb2.Correo(identificador=id, 
+                                                                   tema="",
+                                                                   emisor="",
+                                                                   destinatario=dest,
+                                                                   contenido="",
+                                                                   leido=True))
+        print(resp.mensaje)
 
     def eliminarCorreoSalida(self, correoID):
-        pass
+        id = self.bandejaSalida[correoID].identificador
+        emi = self.bandejaSalida[correoID].emisor
+        resp = self.stub.eliminarCorreosSalida(turbomessage_pb2.Correo(identificador=id, 
+                                                                   tema="",
+                                                                   emisor=emi,
+                                                                   destinatario="",
+                                                                   contenido="",
+                                                                   leido=True))
+        print(resp.mensaje)
 
     
 
