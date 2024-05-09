@@ -104,11 +104,11 @@ func (s *Server) EnviarCorreo(ctx context.Context, in *pb.Correo) (*pb.Status, e
 	}
 
 	//Probar si la bandeja de salida del emisor está llena
-	if len(usersMap[*in.Emisor].BandejaSalidas) > numMax {
+	if len(usersMap[*in.Emisor].BandejaSalidas) >= numMax {
 		return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"Bandeja de Salida llena"}[0]}, nil
 	}
 	//Probar si la bandeja de entrada del destinatario está llenaz
-	if len(usersMap[*in.Destinatario].BandejaEntradas) > numMax {
+	if len(usersMap[*in.Destinatario].BandejaEntradas) >= numMax {
 		return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"Bandeja de Entrada llena"}[0]}, nil
 	}
 	// var found = false
@@ -213,6 +213,26 @@ func (s *Server) CorreosSalida(in *pb.Usuario, stream pb.TurboMessage_CorreosSal
 		}
 	}
 	return nil
+}
+
+func (s *Server) CorreoLeido(ctx context.Context, in *pb.Correo) (*pb.Status, error) {
+
+	correosLock.Lock()
+	//LIFO
+	defer correosLock.Unlock()
+	defer reloadCorreoDBs()
+
+	if _, exists := correosMap[int(*in.Identificador)]; exists {
+
+		correo := correosMap[int(*in.Identificador)]
+		correo.Leido = true
+		correosMap[int(*in.Identificador)] = correo
+
+		return &pb.Status{Success: &[]bool{true}[0], Mensaje: &[]string{"Correo leído con éxito"}[0]}, nil
+	} else {
+		return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"Algo falló al leer el correo"}[0]}, nil
+	}
+
 }
 
 func reloadUserDBs() {

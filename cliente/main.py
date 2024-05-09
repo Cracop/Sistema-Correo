@@ -13,6 +13,8 @@ class Cliente:
         self.puerto = puerto
         self.canal = grpc.insecure_channel("localhost:"+puerto)
         self.stub = turbomessage_pb2_grpc.TurboMessageStub(self.canal)
+        self.bandejaEntrada = []
+        self.bandejaSalida = []
 
     def limpiar_pantalla(self):
         if os.name == 'nt':
@@ -104,25 +106,64 @@ class Cliente:
 
     def verBandejaEntrada(self):
         self.limpiar_pantalla()
+        self.bandejaEntrada.clear()
         print("BANDEJA DE ENTRADA DE "+self.sesion["usuario"])
+        
         correos = self.stub.correosEntrada(turbomessage_pb2.Usuario(usuario=self.sesion["usuario"], contrasena=""))
         for correo in correos:
+            self.bandejaEntrada.append(correo)
             print(("-"*30))
-            print("ID:"+str(correo.identificador)+"| Asunto: "+ correo.tema +"| De:" + correo.emisor+ " | Leído: "+str(correo.leido))
-            print(("-"*30))
+            print("ID:"+str(len(self.bandejaEntrada))+"| Asunto: "+ correo.tema +"| De:" + correo.emisor+ " | Leído: "+str(correo.leido))
+            print(("-"*30))   
 
-        
+        while True:
+            action = input("Escribe el ID del correo que quieres leer o 'q' si quieres regresar: ")
+            if action == "q":
+                return
+            
+            try:
+                ac = int(action)
+                print(ac)
+                print(type(ac))
+                print(len(self.bandejaEntrada))
+                ac -=1
+                if ac < len(self.bandejaEntrada):
+                    self.verCorreo(ac, True) 
+                else:
+                    print("No hay tal correo")
+
+            except:
+                print("No hay tal accion")     
 
     def verBandejaSalida(self):
         self.limpiar_pantalla()
+        self.bandejaSalida.clear()
         print("BANDEJA DE SALIDA DE "+self.sesion["usuario"])
         correos = self.stub.correosSalida(turbomessage_pb2.Usuario(usuario=self.sesion["usuario"], contrasena=""))
-        print(type(correos))
         for correo in correos:
+            self.bandejaSalida.append(correo)
             print(("-"*30))
-            print("ID:"+str(correo.identificador)+"| Asunto: "+ correo.tema +"| A: " + correo.destinatario )
-            print(("-"*30))
+            print("ID:"+str(len(self.bandejaSalida))+"| Asunto: "+ correo.tema +"| A: " + correo.destinatario )
+        print(("-"*30))
 
+        while True:
+            action = input("Escribe el ID del correo que quieres leer o 'q' si quieres regresar: ")
+            if action == "q":
+                return
+            
+            try:
+                ac = int(action)
+                print(ac)
+                print(type(ac))
+                print(len(self.bandejaSalida))
+                ac -=1
+                if ac < len(self.bandejaSalida):
+                    self.verCorreo(ac, False) 
+                else:
+                    print("No hay tal correo")
+
+            except:
+                print("No hay tal accion") 
         
 
     def escribirCorreo(self):
@@ -148,7 +189,27 @@ class Cliente:
             print("Nombre: "+str(elemento.usuario))
         print(("="*12) + "Fin del Directorio'"+("="*12))
         
-    def verCorreo(self,correoID):
+    def verCorreo(self,correoID_local, entrada):
+        print(correoID_local)
+        if entrada:
+            print(self.bandejaEntrada[correoID_local])
+            id = self.bandejaEntrada[correoID_local].identificador
+            self.stub.correoLeido(turbomessage_pb2.Correo(identificador=id, 
+                                                                   tema="",
+                                                                   emisor="",
+                                                                   destinatario="",
+                                                                   contenido="",
+                                                                   leido=True))
+            print(self.bandejaEntrada[correoID_local])
+        else:
+            print(self.bandejaSalida[correoID_local])
+
+
+
+    def eliminarCorreoEntrada(self, correoID):
+        pass
+
+    def eliminarCorreoSalida(self, correoID):
         pass
 
     
