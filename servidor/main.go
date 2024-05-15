@@ -16,14 +16,14 @@ import (
 )
 
 var (
-	port            = flag.Int("port", 50051, "The server port")
-	filenameUsers   = "db_users.json"
-	filenameCorreos = "db_correos.json"
-	usersMap        = make(map[string]Usuario)
-	correosMap      = make(map[int]Correo)
-	usersLock       sync.Mutex
-	correosLock     sync.Mutex
-	numMax          = 5
+	port            = flag.Int("port", 50051, "The server port") // Puerto del servidor
+	filenameUsers   = "db_users.json" // Archivo de usuarios
+	filenameCorreos = "db_correos.json" // Archivo de correos
+	usersMap        = make(map[string]Usuario) // Mapa para almacenar usuarios
+	correosMap      = make(map[int]Correo) // Mapa para almacenar correos
+	usersLock       sync.Mutex // Mutex para sincronizar el acceso a usersMap
+	correosLock     sync.Mutex // Mutex para sincronizar el acceso a correosMap
+	numMax          = 5 // Número máximo de correos permitidos en bandeja
 )
 
 type Usuario struct {
@@ -34,7 +34,6 @@ type Usuario struct {
 }
 
 type Correo struct {
-	// User         string `json:"usuario"`
 	Tema         string `json:"tema"`
 	Destinatario string `json:"destinatario"`
 	Emisor       string `json:"emisor"`
@@ -46,13 +45,12 @@ type Server struct {
 	pb.TurboMessageServer
 }
 
-// El nombre de la función lo busco en turbomessage_grpc.pb
+// NuevoUsuario agrega un nuevo usuario al sistema
 func (s *Server) NuevoUsuario(ctx context.Context, in *pb.Usuario) (*pb.Status, error) {
 	fmt.Print(in.Usuario)
 	usersLock.Lock()
-	//LIFO
-	defer usersLock.Unlock()
-	defer reloadUserDBs()
+	defer usersLock.Unlock() // Desbloquea el mutex al final de la función
+	defer reloadUserDBs() // Recarga la base de datos de usuarios
 
 	if _, exists := usersMap[*in.Usuario]; !exists {
 		usersMap[*in.Usuario] = Usuario{Passwd: *in.Contrasena}
@@ -60,21 +58,20 @@ func (s *Server) NuevoUsuario(ctx context.Context, in *pb.Usuario) (*pb.Status, 
 	} else {
 		return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"Usuario ya existe"}[0]}, nil
 	}
-
 }
 
+// RevisarUsuario verifica si un usuario está registrado
 func (s *Server) RevisarUsuario(ctx context.Context, in *pb.Usuario) (*pb.Status, error) {
 	if _, exists := usersMap[*in.Usuario]; exists {
 		return &pb.Status{Success: &[]bool{true}[0], Mensaje: &[]string{"Usuario existe"}[0]}, nil
 	} else {
 		return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"Usuario no existe"}[0]}, nil
 	}
-
 }
 
+// DirectorioUsuario envía el directorio de usuarios a través de un stream
 func (s *Server) DirectorioUsuario(em *pb.Empty, stream pb.TurboMessage_DirectorioUsuarioServer) error {
 	for id := range usersMap {
-		// tempUser := Usuario{person.User, strconv.Itoa(id)}
 		idP := ""
 		tempUser := &pb.Usuario{Usuario: &id, Contrasena: &idP}
 
@@ -89,54 +86,58 @@ func (s *Server) DirectorioUsuario(em *pb.Empty, stream pb.TurboMessage_Director
 // 	return status.Errorf(codes.Unimplemented, "method DirectorioUsuario not implemented")
 // }
 
+// EnviarCorreo maneja el envío de correos entre usuarios
 func (s *Server) EnviarCorreo(ctx context.Context, in *pb.Correo) (*pb.Status, error) {
 
-	correosLock.Lock()
-	usersLock.Lock()
-	//LIFO
+	correosLock.Lock() // Bloquea el acceso concurrente a correosMap
+	usersLock.Lock() // Bloquea el acceso concurrente a usersMap
 	defer correosLock.Unlock()
 	defer usersLock.Unlock()
 	defer reloadCorreoDBs()
 	defer reloadUserDBs()
 
+	// Verifica si el destinatario existe
 	if _, exists := usersMap[*in.Destinatario]; !exists {
 		return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"No existe tal usuario"}[0]}, nil
 	}
 
-	//Probar si la bandeja de salida del emisor está llena
+	// Verifica si la bandeja de salida del emisor está llena
 	if len(usersMap[*in.Emisor].BandejaSalidas) >= numMax {
 		return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"Bandeja de Salida llena"}[0]}, nil
 	}
-	//Probar si la bandeja de entrada del destinatario está llenaz
+
+	// Verifica si la bandeja de entrada del destinatario está llena
 	if len(usersMap[*in.Destinatario].BandejaEntradas) >= numMax {
 		return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"Bandeja de Entrada llena"}[0]}, nil
 	}
-	// var found = false
+
+	// Genera un ID único para el correo
 	id := rand.Intn(101) + 1
-
 	if _, exists := correosMap[id]; exists {
-
 		for {
 			id = rand.Intn(101) + 1
 			if _, exists := correosMap[id]; !exists {
-				// If the id does not exist in the map, break out of the loop
+				// Si el ID no existe en el mapa, salir del bucle
 				break
 			}
-
 		}
-
 	}
 
-	correosMap[id] = Correo{Tema: *in.Tema,
+	// Almacena el correo en correosMap
+	correosMap[id] = Correo{
+		Tema:         *in.Tema,
 		Destinatario: *in.Destinatario,
 		Emisor:       *in.Emisor,
 		Contenido:    *in.Contenido,
-		Leido:        *in.Leido}
+		Leido:        *in.Leido,
+	}
 
+	// Actualiza la bandeja de salida del emisor
 	usuario := usersMap[*in.Emisor]
 	usuario.BandejaSalidas = append(usuario.BandejaSalidas, id)
 	usersMap[*in.Emisor] = usuario
 
+	// Actualiza la bandeja de entrada del destinatario
 	usuario = usersMap[*in.Destinatario]
 	usuario.BandejaEntradas = append(usuario.BandejaEntradas, id)
 	usersMap[*in.Destinatario] = usuario
@@ -144,14 +145,10 @@ func (s *Server) EnviarCorreo(ctx context.Context, in *pb.Correo) (*pb.Status, e
 	return &pb.Status{Success: &[]bool{true}[0], Mensaje: &[]string{"Correo enviado con éxito"}[0]}, nil
 }
 
-// func revisarRestriccion(emisor string, destinatario string) (bool, string) {
-
-// }
-
+// CorreosEntrada envía los correos en la bandeja de entrada del usuario a través de un stream
 func (s *Server) CorreosEntrada(in *pb.Usuario, stream pb.TurboMessage_CorreosEntradaServer) error {
-	correosLock.Lock()
-	usersLock.Lock()
-	//LIFO
+	correosLock.Lock() // Bloquea el acceso concurrente a correosMap
+	usersLock.Lock() // Bloquea el acceso concurrente a usersMap
 	defer correosLock.Unlock()
 	defer usersLock.Unlock()
 	defer reloadCorreoDBs()
@@ -160,32 +157,29 @@ func (s *Server) CorreosEntrada(in *pb.Usuario, stream pb.TurboMessage_CorreosEn
 	bandeja := usersMap[*in.Usuario].BandejaEntradas
 
 	for _, id := range bandeja {
-		// fmt.Println(id)
-		// fmt.Println(bandeja)
-		// fmt.Println(correosMap)
 		correo := correosMap[id]
-		ID := (int32(id))
-		// fmt.Println(id)
+		ID := int32(id)
 
-		tempCorreo := &pb.Correo{Identificador: &ID,
-			Tema:         &correo.Tema,
-			Destinatario: &correo.Destinatario,
-			Emisor:       &correo.Emisor,
-			Contenido:    &correo.Contenido,
-			Leido:        &correo.Leido}
+		tempCorreo := &pb.Correo{
+			Identificador: &ID,
+			Tema:          &correo.Tema,
+			Destinatario:  &correo.Destinatario,
+			Emisor:        &correo.Emisor,
+			Contenido:     &correo.Contenido,
+			Leido:         &correo.Leido,
+		}
 
 		if err := stream.Send(tempCorreo); err != nil {
 			return err
 		}
 	}
 	return nil
-
 }
 
+// CorreosSalida envía los correos en la bandeja de salida del usuario a través de un stream
 func (s *Server) CorreosSalida(in *pb.Usuario, stream pb.TurboMessage_CorreosSalidaServer) error {
-	correosLock.Lock()
-	usersLock.Lock()
-	//LIFO
+	correosLock.Lock() // Bloquea el acceso concurrente a correosMap
+	usersLock.Lock() // Bloquea el acceso concurrente a usersMap
 	defer correosLock.Unlock()
 	defer usersLock.Unlock()
 	defer reloadCorreoDBs()
@@ -194,19 +188,17 @@ func (s *Server) CorreosSalida(in *pb.Usuario, stream pb.TurboMessage_CorreosSal
 	bandeja := usersMap[*in.Usuario].BandejaSalidas
 
 	for _, id := range bandeja {
-		// fmt.Println(id)
-		// fmt.Println(bandeja)
-		// fmt.Println(correosMap)
 		correo := correosMap[id]
-		ID := (int32(id))
-		// fmt.Println(id)
+		ID := int32(id)
 
-		tempCorreo := &pb.Correo{Identificador: &ID,
-			Tema:         &correo.Tema,
-			Destinatario: &correo.Destinatario,
-			Emisor:       &correo.Emisor,
-			Contenido:    &correo.Contenido,
-			Leido:        &correo.Leido}
+		tempCorreo := &pb.Correo{
+			Identificador: &ID,
+			Tema:          &correo.Tema,
+			Destinatario:  &correo.Destinatario,
+			Emisor:        &correo.Emisor,
+			Contenido:     &correo.Contenido,
+			Leido:         &correo.Leido,
+		}
 
 		if err := stream.Send(tempCorreo); err != nil {
 			return err
@@ -215,15 +207,13 @@ func (s *Server) CorreosSalida(in *pb.Usuario, stream pb.TurboMessage_CorreosSal
 	return nil
 }
 
+// CorreoLeido marca un correo como leído
 func (s *Server) CorreoLeido(ctx context.Context, in *pb.Correo) (*pb.Status, error) {
-
-	correosLock.Lock()
-	//LIFO
+	correosLock.Lock() // Bloquea el acceso concurrente a correosMap
 	defer correosLock.Unlock()
 	defer reloadCorreoDBs()
 
 	if _, exists := correosMap[int(*in.Identificador)]; exists {
-
 		correo := correosMap[int(*in.Identificador)]
 		correo.Leido = true
 		correosMap[int(*in.Identificador)] = correo
@@ -232,13 +222,12 @@ func (s *Server) CorreoLeido(ctx context.Context, in *pb.Correo) (*pb.Status, er
 	} else {
 		return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"Algo falló al leer el correo"}[0]}, nil
 	}
-
 }
 
+// EliminarCorreosEntrada elimina un correo de la bandeja de entrada
 func (s *Server) EliminarCorreosEntrada(ctx context.Context, in *pb.Correo) (*pb.Status, error) {
-	correosLock.Lock()
-	usersLock.Lock()
-	//LIFO
+	correosLock.Lock() // Bloquea el acceso concurrente a correosMap
+	usersLock.Lock() // Bloquea el acceso concurrente a usersMap
 	defer correosLock.Unlock()
 	defer usersLock.Unlock()
 	defer reloadCorreoDBs()
@@ -255,154 +244,141 @@ func (s *Server) EliminarCorreosEntrada(ctx context.Context, in *pb.Correo) (*pb
 		return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"Algo falló al borrar el correo"}[0]}, nil
 	}
 
-	fmt.Println(usersMap[*in.Destinatario].BandejaEntradas)
+	// Actualiza la bandeja de entrada del destinatario
 	newEntrada := append(usersMap[*in.Destinatario].BandejaEntradas[:r], usersMap[*in.Destinatario].BandejaEntradas[r+1:]...)
-	fmt.Println(newEntrada)
-
 	tempUser := usersMap[*in.Destinatario]
-	fmt.Println(tempUser)
 	tempUser.BandejaEntradas = newEntrada
 	usersMap[*in.Destinatario] = tempUser
-	fmt.Println(newEntrada)
-	fmt.Println(usersMap[*in.Destinatario])
-
-	// delete(correosMap, int(*in.Identificador))
 
 	return &pb.Status{Success: &[]bool{true}[0], Mensaje: &[]string{"Exito"}[0]}, nil
-
 }
+
 func (s *Server) EliminarCorreosSalida(ctx context.Context, in *pb.Correo) (*pb.Status, error) {
-	correosLock.Lock()
-	usersLock.Lock()
-	//LIFO
-	defer correosLock.Unlock()
-	defer usersLock.Unlock()
-	defer reloadCorreoDBs()
-	defer reloadUserDBs()
+    correosLock.Lock() // Bloquea el acceso concurrente a correosMap
+    usersLock.Lock() // Bloquea el acceso concurrente a usersMap
+    defer correosLock.Unlock()
+    defer usersLock.Unlock()
+    defer reloadCorreoDBs()
+    defer reloadUserDBs()
 
-	target := int(*in.Identificador)
-	r := -1
-	for i, v := range usersMap[*in.Emisor].BandejaSalidas {
-		if v == target {
-			r = i
-		}
-	}
-	if r == -1 {
-		return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"Algo falló al borrar el correo"}[0]}, nil
-	}
+    target := int(*in.Identificador)
+    r := -1
+    for i, v := range usersMap[*in.Emisor].BandejaSalidas {
+        if v == target {
+            r = i
+        }
+    }
+    if r == -1 {
+        return &pb.Status{Success: &[]bool{false}[0], Mensaje: &[]string{"Algo falló al borrar el correo"}[0]}, nil
+    }
 
-	fmt.Println(usersMap[*in.Emisor].BandejaSalidas)
-	newSalida := append(usersMap[*in.Emisor].BandejaSalidas[:r], usersMap[*in.Emisor].BandejaSalidas[r+1:]...)
-	fmt.Println(newSalida)
+    // Elimina el correo de la bandeja de salida del emisor
+    fmt.Println(usersMap[*in.Emisor].BandejaSalidas)
+    newSalida := append(usersMap[*in.Emisor].BandejaSalidas[:r], usersMap[*in.Emisor].BandejaSalidas[r+1:]...)
+    fmt.Println(newSalida)
 
-	tempUser := usersMap[*in.Emisor]
-	fmt.Println(tempUser)
-	tempUser.BandejaSalidas = newSalida
-	usersMap[*in.Emisor] = tempUser
-	fmt.Println(newSalida)
-	fmt.Println(usersMap[*in.Emisor])
+    tempUser := usersMap[*in.Emisor]
+    fmt.Println(tempUser)
+    tempUser.BandejaSalidas = newSalida
+    usersMap[*in.Emisor] = tempUser
+    fmt.Println(newSalida)
+    fmt.Println(usersMap[*in.Emisor])
 
-	// delete(correosMap, int(*in.Identificador))
+    // delete(correosMap, int(*in.Identificador)) // Comentar o descomentar según sea necesario
 
-	return &pb.Status{Success: &[]bool{true}[0], Mensaje: &[]string{"Exito"}[0]}, nil
+    return &pb.Status{Success: &[]bool{true}[0], Mensaje: &[]string{"Exito"}[0]}, nil
 }
 
 func reloadUserDBs() {
+    // Recarga la base de datos de usuarios desde el archivo JSON
+    jsonData, err := json.Marshal(usersMap)
+    if err != nil {
+        return
+    }
+    os.WriteFile(filenameUsers, jsonData, 0644)
 
-	jsonData, err := json.Marshal(usersMap)
-	if err != nil {
-		return
-	}
-	os.WriteFile(filenameUsers, jsonData, 0644)
+    data, err := os.ReadFile(filenameUsers)
+    if err != nil {
+        return
+    }
 
-	data, err := os.ReadFile(filenameUsers)
-	if err != nil {
-		return
-	}
-
-	if err := json.Unmarshal(data, &usersMap); err != nil {
-		return
-	}
+    if err := json.Unmarshal(data, &usersMap); err != nil {
+        return
+    }
 }
 
 func reloadCorreoDBs() {
+    // Recarga la base de datos de correos desde el archivo JSON
+    jsonData, err := json.Marshal(correosMap)
+    if err != nil {
+        return
+    }
+    os.WriteFile(filenameCorreos, jsonData, 0644)
 
-	jsonData, err := json.Marshal(correosMap)
-	if err != nil {
-		return
-	}
-	os.WriteFile(filenameCorreos, jsonData, 0644)
+    data, err := os.ReadFile(filenameCorreos)
+    if err != nil {
+        return
+    }
 
-	data, err := os.ReadFile(filenameCorreos)
-	if err != nil {
-		return
-	}
-
-	if err := json.Unmarshal(data, &correosMap); err != nil {
-		return
-	}
+    if err := json.Unmarshal(data, &correosMap); err != nil {
+        return
+    }
 }
 
 func init() {
-	_, err := os.Stat(filenameUsers)
-	if os.IsNotExist(err) {
-		// File doesn't exist, create it
-		file1, err := os.Create(filenameUsers)
+    // Inicializa los archivos de usuarios y correos si no existen
+    _, err := os.Stat(filenameUsers)
+    if os.IsNotExist(err) {
+        file1, err := os.Create(filenameUsers)
+        if err != nil {
+            fmt.Println("Error creating file:", err)
+            return
+        }
+        defer file1.Close()
+        fmt.Println("File created:", filenameUsers)
+    }
 
-		if err != nil {
-			fmt.Println("Error creating file:", err)
-			return
-		}
-		defer file1.Close()
-		fmt.Println("File created:", filenameUsers)
-	}
+    _, err = os.Stat(filenameCorreos)
+    if os.IsNotExist(err) {
+        file1, err := os.Create(filenameCorreos)
+        if err != nil {
+            fmt.Println("Error creating file:", err)
+            return
+        }
+        defer file1.Close()
+        fmt.Println("File created:", filenameCorreos)
+    }
 
-	_, err = os.Stat(filenameCorreos)
-	if os.IsNotExist(err) {
-		// File doesn't exist, create it
-		file1, err := os.Create(filenameCorreos)
+    // Carga los datos de los archivos JSON a los mapas correspondientes
+    data, err := os.ReadFile(filenameUsers)
+    if err != nil {
+        return
+    }
 
-		if err != nil {
-			fmt.Println("Error creating file:", err)
-			return
-		}
-		defer file1.Close()
-		fmt.Println("File created:", filenameCorreos)
-	}
+    if err := json.Unmarshal(data, &usersMap); err != nil {
+        return
+    }
 
-	data, err := os.ReadFile(filenameUsers)
-	if err != nil {
-		return
-	}
+    data, err = os.ReadFile(filenameCorreos)
+    if err != nil {
+        return
+    }
 
-	if err := json.Unmarshal(data, &usersMap); err != nil {
-		return
-	}
-
-	data, err = os.ReadFile(filenameCorreos)
-	if err != nil {
-		return
-	}
-
-	if err := json.Unmarshal(data, &correosMap); err != nil {
-		return
-	}
+    if err := json.Unmarshal(data, &correosMap); err != nil {
+        return
+    }
 }
 
-// func startServer() {
-
-// }
-
 func main() {
-	flag.Parse()
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
-	s := grpc.NewServer()
-	pb.RegisterTurboMessageServer(s, &Server{})
-	log.Printf("server listening at %v", lis.Addr())
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
+    flag.Parse()
+    lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
+    if err != nil {
+        log.Fatalf("failed to listen: %v", err)
+    }
+    s := grpc.NewServer()
+    pb.RegisterTurboMessageServer(s, &Server{})
+    log.Printf("server listening at %v", lis.Addr())
+    if err := s.Serve(lis); err != nil {
+        log.Fatalf("failed to serve: %v", err)
+    }
 }
