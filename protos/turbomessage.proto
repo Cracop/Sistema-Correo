@@ -1,41 +1,41 @@
 syntax = "proto3";
 package correos;
 
-option go_package = "./";  // Specify your Go import path here
+option go_package = "./";  // Especifica la ruta de importación de Go aquí
 
 service TurboMessage {
-    rpc nuevoUsuario(Usuario) returns (Status) {}; //agregar un usuario
-    rpc revisarUsuario(Usuario) returns (Status) {}; //revisar que el usuario esté registrado
-    rpc directorioUsuario(Empty) returns (stream Usuario) {};
-    rpc enviarCorreo(Correo) returns (Status) {}; //envía un correo 
-    rpc correosEntrada(Usuario) returns (stream Correo) {}; //muestra los correos de entrada
-    rpc correosSalida(Usuario) returns (stream Correo) {};  // muestra la bandeja de salida
-    rpc eliminarCorreosEntrada(Correo) returns (Status) {}; //elimina un correo de la bandeja de entrada
-    rpc eliminarCorreosSalida(Correo) returns (Status) {}; //elimina un correo de la bandeja de salida
-    rpc correoLeido(Correo) returns (Status) {}; //cambia el estado de "leído" de un correo
+    rpc nuevoUsuario(Usuario) returns (Status) {}; // Agregar un usuario
+    rpc revisarUsuario(Usuario) returns (Status) {}; // Revisar que el usuario esté registrado
+    rpc directorioUsuario(Empty) returns (stream Usuario) {}; // Obtener el directorio de usuarios
+    rpc enviarCorreo(Correo) returns (Status) {}; // Enviar un correo 
+    rpc correosEntrada(Usuario) returns (stream Correo) {}; // Mostrar los correos de entrada
+    rpc correosSalida(Usuario) returns (stream Correo) {}; // Mostrar la bandeja de salida
+    rpc eliminarCorreosEntrada(Correo) returns (Status) {}; // Eliminar un correo de la bandeja de entrada
+    rpc eliminarCorreosSalida(Correo) returns (Status) {}; // Eliminar un correo de la bandeja de salida
+    rpc correoLeido(Correo) returns (Status) {}; // Cambiar el estado de "leído" de un correo
 }
 
 message Usuario {
-    optional string usuario = 1;
-    optional string contrasena = 2;
-
+    optional string usuario = 1; // Nombre de usuario
+    optional string contrasena = 2; // Contraseña del usuario
 }
+
 message Correo {
-        optional int32 identificador = 1; 
-        optional string tema = 2; 
-        optional string emisor = 3;
-        optional string destinatario = 4;
-        optional string contenido = 5; 
-        optional bool leido = 6;
+    optional int32 identificador = 1; // Identificador único del correo
+    optional string tema = 2; // Asunto del correo
+    optional string emisor = 3; // Emisor del correo
+    optional string destinatario = 4; // Destinatario del correo
+    optional string contenido = 5; // Contenido del correo
+    optional bool leido = 6; // Estado de lectura del correo
 }
 
 message Status {
-    optional bool success = 1; 
-    optional string mensaje = 2;
+    optional bool success = 1; // Indica si la operación fue exitosa
+    optional string mensaje = 2; // Mensaje adicional sobre el estado de la operación
 }
 
 message ListadoUsuarios {
-    repeated Usuario objetos = 1;
+    repeated Usuario objetos = 1; // Lista de usuarios
 }
 
-message Empty {}
+message Empty {} // Mensaje vacío utilizado para solicitudes que no requieren parámetros
